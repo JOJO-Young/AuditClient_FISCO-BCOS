@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import org.fisco.bcos.sdk.BcosSDK;
 import org.fisco.bcos.sdk.client.Client;
 import org.fisco.bcos.sdk.crypto.keypair.CryptoKeyPair;
-import org.fisco.bcos.sdk.model.TransactionReceipt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -22,16 +21,21 @@ public class AuditClient {
     private Client client;
     private CryptoKeyPair cryptoKeyPair;
 
-    public void initialize() throws Exception {
-        String configFile = Objects.requireNonNull(BcosSDK.class.getClassLoader().getResource("config-example.toml")).getPath();
-        sdk = BcosSDK.build(configFile);
-        // 初始化可向群组1发交易的Client
-        client = sdk.getClient(1);
-        cryptoKeyPair = client.getCryptoSuite().createKeyPair();
-        client.getCryptoSuite().setCryptoKeyPair(cryptoKeyPair);
-        logger.debug("create client for group1, account address is " + cryptoKeyPair.getAddress());
+    private void initialize(){
+        try{
+            String configFile = Objects.requireNonNull(BcosSDK.class.getClassLoader().getResource("config-example.toml")).getPath();
+            sdk = BcosSDK.build(configFile);
+            // 初始化可向群组1发交易的Client
+            client = sdk.getClient(1);
+            cryptoKeyPair = client.getCryptoSuite().createKeyPair();
+            client.getCryptoSuite().setCryptoKeyPair(cryptoKeyPair);
+            logger.debug("create client for group1, account address is " + cryptoKeyPair.getAddress());
+        }catch(Exception e){
+            logger.error("initialize exception, error message is {}", e.getMessage());
+            System.out.printf("initialize failed, error message is %s\n", e.getMessage());
+        }
     }
-    public void deployAssetAndRecordAddr() {
+    private void deployAssetAndRecordAddr() {
         try {
             AuditHashContract sample = AuditHashContract.deploy(client, cryptoKeyPair);
             System.out.println(
@@ -41,31 +45,31 @@ public class AuditClient {
             System.out.println(" deploy Asset contract failed, error message is  " + e.getMessage());
         }
     }
-    public void recordAuditAddr(String address) throws FileNotFoundException, IOException {
+    private void recordAuditAddr(String address) throws IOException {
         Properties prop = new Properties();
         prop.setProperty("address", address);
         final Resource contractResource = new ClassPathResource("contract.properties");
         FileOutputStream fileOutputStream = new FileOutputStream(contractResource.getFile());
         prop.store(fileOutputStream, "contract address");
     }
-    public String loadAuditAddr() throws Exception {
-        // load Asset contact address from contract.properties
+    private String loadAuditAddr() throws Exception {
+        // load contact address from contract.properties
         Properties prop = new Properties();
         final Resource contractResource = new ClassPathResource("contract.properties");
         prop.load(contractResource.getInputStream());
 
         String contractAddress = prop.getProperty("address");
-        if (contractAddress == null || contractAddress.trim().equals("")) {
+        if (contractAddress == null || contractAddress.trim().isEmpty()) {
             throw new Exception(" load Audit contract address failed, please deploy it first. ");
         }
         logger.info(" load Audit address from contract.properties, address is {}", contractAddress);
         return contractAddress;
     }
-    public void the_saveAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec) {
+    private void the_saveAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec) {
         try {
             String contractAddress = loadAuditAddr();
             AuditHashContract save_event = AuditHashContract.load(contractAddress, client, cryptoKeyPair);
-            TransactionReceipt receipt = save_event.saveAuditHash(hash, ctID, flowStartSec);
+            save_event.saveAuditHash(hash, ctID, flowStartSec);
             System.out.println(
                     "save audit information success!\nctID is " + ctID.toString() + "\nflowStartSec is " + flowStartSec.toString() + "\nhashcode is " + hash);
         } catch (Exception e) {
@@ -73,7 +77,7 @@ public class AuditClient {
             System.out.printf("saveAuditHash failed, error message is %s\n", e.getMessage());
         }
     }
-    public String the_getAuditHash(BigInteger ctID, BigInteger flowStartSec){
+    private String the_getAuditHash(BigInteger ctID, BigInteger flowStartSec){
         try{
             String contractAddress = loadAuditAddr();
             AuditHashContract get_event = AuditHashContract.load(contractAddress, client, cryptoKeyPair);
@@ -84,7 +88,7 @@ public class AuditClient {
             return null;
         }
     }
-    public Boolean the_verifyAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec){
+    private Boolean the_verifyAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec){
         try{
             String contractAddress = loadAuditAddr();
             AuditHashContract verify_event = AuditHashContract.load(contractAddress, client, cryptoKeyPair);
@@ -95,19 +99,16 @@ public class AuditClient {
             return null;
         }
     }
-    public void the_watchAndUploadLog(String logFilePath){
+   private void the_watchAndUploadLog(String logFilePath){
         try{
-            BufferedReader reader = new BufferedReader(new FileReader(logFilePath));
             long lastLineNumber = 0;
 
             System.out.println("按回车退出监测......");
-            while(true){
-                if (System.in.available() > 0)
-                    break;
+            while (System.in.available() <= 0) {
 
                 long currentLineNumber = getLineNumber(logFilePath);
-                if(currentLineNumber > lastLineNumber){
-                    for(long i = lastLineNumber + 1; i <= currentLineNumber; i++){
+                if (currentLineNumber > lastLineNumber) {
+                    for (long i = lastLineNumber + 1; i <= currentLineNumber; i++) {
                         String line = readLineFromFile(logFilePath, i);
                         Map<String, String> auditInfo = parseAuditInfo(line);
 
@@ -190,7 +191,7 @@ public class AuditClient {
         System.exit(0);
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args){
         AuditClient client = new AuditClient();
         client.initialize();
 
@@ -202,7 +203,7 @@ public class AuditClient {
                 client.the_saveAuditHash(args[1], new BigInteger(args[2]), new BigInteger(args[3]));
                 break;
             case "verify":
-                if(client.the_verifyAuditHash(args[1], new BigInteger(args[2]), new BigInteger(args[3])))
+                if(Boolean.TRUE.equals(client.the_verifyAuditHash(args[1], new BigInteger(args[2]), new BigInteger(args[3]))))
                     System.out.println("PASS");
                 else
                     System.out.println("FAIL");
