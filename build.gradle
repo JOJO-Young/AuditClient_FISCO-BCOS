@@ -1,0 +1,93 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+/*
+这是一个Gradle构建脚本中的repositories块，用于配置项目的仓库。
+在这个repositories块中，定义了三个仓库：
+1. mavenCentral()：这是Gradle的默认仓库，用于获取公共的Maven依赖。
+2. 通过maven闭包定义了一个自定义的Maven仓库。其中，allowInsecureProtocol设置为true表示允许使用不安全的协议进行通信。url指定了该仓库的地址为"http://maven.aliyun.com/nexus/content/groups/public/"。
+3. 通过maven闭包定义了另一个自定义的Maven仓库。同样，allowInsecureProtocol设置为true表示允许使用不安全的协议进行通信。url指定了该仓库的地址为"https://oss.sonatype.org/content/repositories/snapshots"。
+这些仓库定义了项目在构建过程中从哪里获取依赖。mavenCentral()是默认的中央仓库，而自定义的仓库可以用于获取特定的依赖或快照版本。
+*/
+repositories {
+    mavenCentral()
+    maven {
+        allowInsecureProtocol = true
+        url "http://maven.aliyun.com/nexus/content/groups/public/"
+    }
+    maven {
+        allowInsecureProtocol = true
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+
+//引入Spring框架
+def spring_version = "4.3.27.RELEASE"
+List spring = [
+        "org.springframework:spring-core:$spring_version",
+        "org.springframework:spring-beans:$spring_version",
+        "org.springframework:spring-context:$spring_version",
+        "org.springframework:spring-tx:$spring_version",
+]
+
+//在dependencies下加入对FISCO BCOS Java SDK的引用
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    implementation ('org.fisco-bcos.java-sdk:fisco-bcos-java-sdk:2.9.1')
+    implementation spring
+
+    implementation ('org.slf4j:slf4j-log4j12:1.7.36')
+    runtimeOnly('org.slf4j:slf4j-log4j12:1.7.36')
+}
+
+/*
+这是一个Gradle构建脚本中的jar块，用于配置项目的打包和发布。
+在这个jar块中，定义了以下操作：
+1. destinationDirectory：设置打包生成的JAR文件的目标目录为"dist/apps"。
+2. archiveBaseName：设置打包生成的JAR文件的基本名称为项目名称加上".jar"后缀。
+3. exclude：指定需要在打包过程中排除的文件或目录。这里使用通配符来排除了一些文件，包括所有的.toml、.properties、.crt和.key文件。
+4. doLast：这是一个闭包，在打包过程的最后执行。其中包含了一系列的复制操作，将需要的文件从源路径复制到目标路径。
+    - 第一个复制操作从配置项configurations.runtimeClasspath中获取运行时依赖，并将它们复制到目标路径'dist/lib'中。
+    - 第二个复制操作从文件路径'src/test/resources/'中获取资源文件，并将它们复制到目标路径'dist/conf'中。
+    - 第三个复制操作从文件路径'tool/'中获取文件，并将它们复制到目标路径'dist/'中。
+    - 第四个复制操作从文件路径'src/test/resources/contract'中获取合约文件，并将它们复制到目标路径'dist/contract'中。
+这段代码的作用是将项目的源代码、依赖、配置文件和合约文件打包到指定的目录中，以便后续的发布或部署。
+*/
+jar {
+    destinationDirectory = file('dist/apps')
+    archiveBaseName = project.name + '.jar'
+    exclude '**/*.toml'
+    exclude '**/*.properties'
+    exclude '**/*.crt'
+    exclude '**/*.key'
+
+    inputs.dir('tool') // 监视src/main/java目录
+    doLast {
+        copy {
+            from configurations.runtimeClasspath
+            into 'dist/lib'
+        }
+        copy {
+            from file('src/test/resources/')
+            into 'dist/conf'
+        }
+        copy {
+            from file('tool/')
+            into 'dist/'
+        }
+        copy {
+            from file('src/test/resources/contract')
+            into 'dist/contract'
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

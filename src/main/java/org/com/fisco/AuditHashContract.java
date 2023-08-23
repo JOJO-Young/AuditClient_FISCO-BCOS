@@ -1,0 +1,120 @@
+package org.com.fisco;
+
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.fisco.bcos.sdk.abi.FunctionReturnDecoder;
+import org.fisco.bcos.sdk.abi.TypeReference;
+import org.fisco.bcos.sdk.abi.datatypes.Bool;
+import org.fisco.bcos.sdk.abi.datatypes.Function;
+import org.fisco.bcos.sdk.abi.datatypes.Type;
+import org.fisco.bcos.sdk.abi.datatypes.Utf8String;
+import org.fisco.bcos.sdk.abi.datatypes.generated.Uint64;
+import org.fisco.bcos.sdk.abi.datatypes.generated.tuples.generated.Tuple3;
+import org.fisco.bcos.sdk.client.Client;
+import org.fisco.bcos.sdk.contract.Contract;
+import org.fisco.bcos.sdk.crypto.CryptoSuite;
+import org.fisco.bcos.sdk.crypto.keypair.CryptoKeyPair;
+import org.fisco.bcos.sdk.model.CryptoType;
+import org.fisco.bcos.sdk.model.TransactionReceipt;
+import org.fisco.bcos.sdk.model.callback.TransactionCallback;
+import org.fisco.bcos.sdk.transaction.model.exception.ContractException;
+
+@SuppressWarnings("unchecked")
+public class AuditHashContract extends Contract {
+    public static final String[] BINARY_ARRAY = {"608060405234801561001057600080fd5b50610680806100206000396000f300608060405260043610610057576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633e4bff971461005c5780638c6c6171146101205780639bbf2209146101c9575b600080fd5b34801561006857600080fd5b506100a5600480360381019080803567ffffffffffffffff169060200190929190803567ffffffffffffffff16906020019092919050505061025a565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100e55780820151818401526020810190506100ca565b50505050905090810190601f1680156101125780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561012c57600080fd5b506101af600480360381019080803590602001908201803590602001908080601f0160208091040260200160405190810160405280939291908181526020018383808284378201915050505050509192919290803567ffffffffffffffff169060200190929190803567ffffffffffffffff169060200190929190505050610348565b604051808215151515815260200191505060405180910390f35b3480156101d557600080fd5b50610258600480360381019080803590602001908201803590602001908080601f0160208091040260200160405190810160405280939291908181526020018383808284378201915050505050509192919290803567ffffffffffffffff169060200190929190803567ffffffffffffffff16906020019092919050505061054a565b005b60606000808467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff1681526020019081526020016000208054600181600116156101000203166002900480601f01602080910402602001604051908101604052809291908181526020018280546001816001161561010002031660029004801561033b5780601f106103105761010080835404028352916020019161033b565b820191906000526020600020905b81548152906001019060200180831161031e57829003601f168201915b5050505050905092915050565b60008060008467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060405160200180828054600181600116156101000203166002900480156103f35780601f106103d15761010080835404028352918201916103f3565b820191906000526020600020905b8154815290600101906020018083116103df575b50509150506040516020818303038152906040526040518082805190602001908083835b60208310151561043c5780518252602082019150602081019050602083039250610417565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916846040516020018082805190602001908083835b6020831015156104a65780518252602082019150602081019050602083039250610481565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040516020818303038152906040526040518082805190602001908083835b60208310151561050f57805182526020820191506020810190506020830392506104ea565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161490509392505050565b826000808467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002090805190602001906105a99291906105af565b50505050565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106105f057805160ff191683800117855561061e565b8280016001018555821561061e579182015b8281111561061d578251825591602001919060010190610602565b5b50905061062b919061062f565b5090565b61065191905b8082111561064d576000816000905550600101610635565b5090565b905600a165627a7a7230582049e8ee14ac5197181c862ab7e653d17a4d04f44d78247fcee19504baf34f38370029"};
+
+    public static final String BINARY = org.fisco.bcos.sdk.utils.StringUtils.joinAll("", BINARY_ARRAY);
+
+    public static final String[] SM_BINARY_ARRAY = {"608060405234801561001057600080fd5b50610680806100206000396000f300608060405260043610610057576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680636775cc441461005c57806397ac2aa914610120578063d1aef70a146101c9575b600080fd5b34801561006857600080fd5b506100a5600480360381019080803567ffffffffffffffff169060200190929190803567ffffffffffffffff16906020019092919050505061025a565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100e55780820151818401526020810190506100ca565b50505050905090810190601f1680156101125780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561012c57600080fd5b506101af600480360381019080803590602001908201803590602001908080601f0160208091040260200160405190810160405280939291908181526020018383808284378201915050505050509192919290803567ffffffffffffffff169060200190929190803567ffffffffffffffff169060200190929190505050610348565b604051808215151515815260200191505060405180910390f35b3480156101d557600080fd5b50610258600480360381019080803590602001908201803590602001908080601f0160208091040260200160405190810160405280939291908181526020018383808284378201915050505050509192919290803567ffffffffffffffff169060200190929190803567ffffffffffffffff16906020019092919050505061054a565b005b60606000808467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff1681526020019081526020016000208054600181600116156101000203166002900480601f01602080910402602001604051908101604052809291908181526020018280546001816001161561010002031660029004801561033b5780601f106103105761010080835404028352916020019161033b565b820191906000526020600020905b81548152906001019060200180831161031e57829003601f168201915b5050505050905092915050565b60008060008467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060405160200180828054600181600116156101000203166002900480156103f35780601f106103d15761010080835404028352918201916103f3565b820191906000526020600020905b8154815290600101906020018083116103df575b50509150506040516020818303038152906040526040518082805190602001908083835b60208310151561043c5780518252602082019150602081019050602083039250610417565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916846040516020018082805190602001908083835b6020831015156104a65780518252602082019150602081019050602083039250610481565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040516020818303038152906040526040518082805190602001908083835b60208310151561050f57805182526020820191506020810190506020830392506104ea565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161490509392505050565b826000808467ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002060008367ffffffffffffffff1667ffffffffffffffff16815260200190815260200160002090805190602001906105a99291906105af565b50505050565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106105f057805160ff191683800117855561061e565b8280016001018555821561061e579182015b8281111561061d578251825591602001919060010190610602565b5b50905061062b919061062f565b5090565b61065191905b8082111561064d576000816000905550600101610635565b5090565b905600a165627a7a72305820f596736c5678edbd51d559aafc5c28dfc430d9fe41e64a74d13db4759e712a530029"};
+
+    public static final String SM_BINARY = org.fisco.bcos.sdk.utils.StringUtils.joinAll("", SM_BINARY_ARRAY);
+
+    public static final String[] ABI_ARRAY = {"[{\"constant\":true,\"inputs\":[{\"name\":\"ctID\",\"type\":\"uint64\"},{\"name\":\"flowStartSec\",\"type\":\"uint64\"}],\"name\":\"getAuditHash\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"hash\",\"type\":\"string\"},{\"name\":\"ctID\",\"type\":\"uint64\"},{\"name\":\"flowStartSec\",\"type\":\"uint64\"}],\"name\":\"verifyAuditHash\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"hash\",\"type\":\"string\"},{\"name\":\"ctID\",\"type\":\"uint64\"},{\"name\":\"flowStartSec\",\"type\":\"uint64\"}],\"name\":\"saveAuditHash\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"};
+
+    public static final String ABI = org.fisco.bcos.sdk.utils.StringUtils.joinAll("", ABI_ARRAY);
+
+    public static final String FUNC_GETAUDITHASH = "getAuditHash";
+
+    public static final String FUNC_VERIFYAUDITHASH = "verifyAuditHash";
+
+    public static final String FUNC_SAVEAUDITHASH = "saveAuditHash";
+
+    protected AuditHashContract(String contractAddress, Client client, CryptoKeyPair credential) {
+        super(getBinary(client.getCryptoSuite()), contractAddress, client, credential);
+    }
+
+    public static String getBinary(CryptoSuite cryptoSuite) {
+        return (cryptoSuite.getCryptoTypeConfig() == CryptoType.ECDSA_TYPE ? BINARY : SM_BINARY);
+    }
+
+    public String getAuditHash(BigInteger ctID, BigInteger flowStartSec) throws ContractException {
+        final Function function = new Function(FUNC_GETAUDITHASH, 
+                Arrays.<Type>asList(new Uint64(ctID),
+                new Uint64(flowStartSec)),
+                Arrays.<TypeReference<?>>asList(new TypeReference<Utf8String>() {}));
+        return executeCallWithSingleValueReturn(function, String.class);
+    }
+
+    public Boolean verifyAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec) throws ContractException {
+        final Function function = new Function(FUNC_VERIFYAUDITHASH, 
+                Arrays.<Type>asList(new Utf8String(hash),
+                new Uint64(ctID),
+                new Uint64(flowStartSec)),
+                Arrays.<TypeReference<?>>asList(new TypeReference<Bool>() {}));
+        return executeCallWithSingleValueReturn(function, Boolean.class);
+    }
+
+    public TransactionReceipt saveAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec) {
+        final Function function = new Function(
+                FUNC_SAVEAUDITHASH, 
+                Arrays.<Type>asList(new Utf8String(hash),
+                new Uint64(ctID),
+                new Uint64(flowStartSec)),
+                Collections.<TypeReference<?>>emptyList());
+        return executeTransaction(function);
+    }
+
+    public byte[] saveAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec, TransactionCallback callback) {
+        final Function function = new Function(
+                FUNC_SAVEAUDITHASH, 
+                Arrays.<Type>asList(new Utf8String(hash),
+                new Uint64(ctID),
+                new Uint64(flowStartSec)),
+                Collections.<TypeReference<?>>emptyList());
+        return asyncExecuteTransaction(function, callback);
+    }
+
+    public String getSignedTransactionForSaveAuditHash(String hash, BigInteger ctID, BigInteger flowStartSec) {
+        final Function function = new Function(
+                FUNC_SAVEAUDITHASH, 
+                Arrays.<Type>asList(new Utf8String(hash),
+                new Uint64(ctID),
+                new Uint64(flowStartSec)),
+                Collections.<TypeReference<?>>emptyList());
+        return createSignedTransaction(function);
+    }
+
+    public Tuple3<String, BigInteger, BigInteger> getSaveAuditHashInput(TransactionReceipt transactionReceipt) {
+        String data = transactionReceipt.getInput().substring(10);
+        final Function function = new Function(FUNC_SAVEAUDITHASH, 
+                Arrays.<Type>asList(), 
+                Arrays.<TypeReference<?>>asList(new TypeReference<Utf8String>() {}, new TypeReference<Uint64>() {}, new TypeReference<Uint64>() {}));
+        List<Type> results = FunctionReturnDecoder.decode(data, function.getOutputParameters());
+        return new Tuple3<String, BigInteger, BigInteger>(
+
+                (String) results.get(0).getValue(), 
+                (BigInteger) results.get(1).getValue(), 
+                (BigInteger) results.get(2).getValue()
+                );
+    }
+
+    public static AuditHashContract load(String contractAddress, Client client, CryptoKeyPair credential) {
+        return new AuditHashContract(contractAddress, client, credential);
+    }
+
+    public static AuditHashContract deploy(Client client, CryptoKeyPair credential) throws ContractException {
+        return deploy(AuditHashContract.class, client, credential, getBinary(client.getCryptoSuite()), "");
+    }
+}
